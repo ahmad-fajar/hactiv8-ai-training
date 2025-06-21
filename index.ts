@@ -1,9 +1,23 @@
-import express from 'express';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import express, { Request, Response } from 'express';
 
-import { ENDPOINTS, GEMINI_MODEL, PORT } from './constants';
+import {
+  ChatRequestBody,
+  ChatResponseBody,
+  ErrorCode,
+  PingResponseBody,
+  ResponseStruct,
+} from './types';
+
+import {
+  ENDPOINTS,
+  ERROR_MESSAGES,
+  GEMINI_MODEL,
+  PORT,
+} from './constants';
+import { getChatResponseStruct } from './utils';
 
 dotenv.config();
 
@@ -28,20 +42,29 @@ const model = genAI.getGenerativeModel({
   // },
 });
 
-app.get(ENDPOINTS.PING, (_req, res) => {
+app.get(ENDPOINTS.PING, (_req: Request, res: Response<PingResponseBody>) => {
   res.json({ message: 'pong' });
 });
 
-app.post(ENDPOINTS.CHAT, async (req, res) => {
+app.post(ENDPOINTS.CHAT, async (req: Request<ChatRequestBody>, res: Response<ResponseStruct<ChatResponseBody>>) => {
   const { message } = req.body;
 
   try {
+    if (typeof message !== 'string') {
+      if (typeof message === 'undefined') {
+        res.json(getChatResponseStruct(ErrorCode.NO_MESSAGE));
+      } else {
+        res.json(getChatResponseStruct(ErrorCode.INVALID_MESSAGE));
+      }
+      return
+    }
+
     const { response } = await model.generateContent(message);
-    res.json({ answer: response.text() });
+    res.json(getChatResponseStruct(ErrorCode.SUCCESS, { answer: response.text() }));
   } catch (error) {
     const e = error as Error;
     console.error(`[API][POST][${ENDPOINTS.CHAT}]`, e.message || e);
-    res.json({ error: 'Something went wrong' });
+    res.json(getChatResponseStruct(ErrorCode.UNKNOWN_ERROR));
   }
 });
 

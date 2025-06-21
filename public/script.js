@@ -22,12 +22,20 @@ form.addEventListener('submit', function (e) {
     body: JSON.stringify({ message }),
   })
   .then(response => response.json())
-  .then(data => {
+  .then(resp => {
+    const { error, error_message, data } = resp;
+
+    if (error !== 0) {
+      throw new Error(error_message);
+    }
+
     appendMessage('bot', data.answer);
+
+    return;
   })
   .catch(error => {
-    appendMessage('bot', 'Error: ' + error.message);
-    console.error('Error: ', error);
+    appendMessage('bot', 'Oops! Something went wrong. Please try again.');
+    console.error('[API][POST][/api/chat]', error);
   })
   .finally(() => {
     setLoading(false);
